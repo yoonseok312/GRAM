@@ -16,7 +16,6 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 
 import copy
 
-
 from repoc_content_kt.models.components.input_embedding import AllItemInputEmbedding
 from repoc_content_kt.models.components.SBERT import SBERT
 from repoc_common import utils
