@@ -1,0 +1,246 @@
+log_root: "YOUR_PATH"
+seed: 0
+# log_root: /root/
+root: "YOUR_PATH"
+mode: 'train'
+dataset_size: large # small or large
+small:
+  train_path: "YOUR_PATH"
+  val_path: "YOUR_PATH"
+large:
+  train_path: "YOUR_PATH"
+  val_path: "YOUR_PATH"
+current_stage: first_stage
+experiment_type:
+  first_stage: Vanilla
+  second_stage: null
+  third_stage: null
+  infer_stage: null
+exp_name: "RUN_NAME"
+Vanilla:
+  batch_size: 512
+  lr: 0.0004
+  val_check_interval: 0.5
+  patience: 10
+  max_epochs: 100
+  kt_ckpt: null
+  news_dim: 400
+  num_attention_heads: 20
+  word_embedding_dim: 300
+  news_query_vector_dim: 200
+  user_query_vector_dim: 200
+  user_log_length: 50
+  user_log_mask: True
+  num_words_title: 24
+  num_words_abstract: 50
+  num_words_body: 50
+  npratio: 4
+  drop_rate: 0.2
+  news_attributes: ['title']
+  use_padded_news_embedding: false
+  filter_num: 0
+Alternating:
+  num_q_split: 100
+  load_ckpt: null
+  load_encoded_embeddings: true
+  freeze_item_emb_after_init: false
+  batch_size: 32
+  use_prev_optimizer: true
+  kt_ckpt: null
+  d_k: 48
+  d_v: 48
+  lr: 0.001
+  lm_lr: 0.0001
+  use_lm_noam: true
+  lm_batch_size: 8
+  lm_warmup: 40
+  change_kt_emb: false
+  val_check_interval: 1.0
+  alternate_by_epoch: true
+  alternating_proportion: null
+  lm_lr_decay_rate: 0.1
+  use_dropout_before_pooling: true
+  base_lm:
+    use_finetuned: False
+    model: 'nreimers/TinyBERT_L-6_H-768_v2' # "bert-base-uncased"
+    # pretrained: nreimers/TinyBERT_L-6_H-768_v2
+    batch_size: 10
+    text_embedding_dim: 768
+    max_seq_len: 512
+    pooling: init_mean
+  max_epochs: 500
+  change_all_qid_for_test: false
+  patience: 10
+  use_wandb: true
+#  exp_name: regressor
+#  regressor_batch_size: 32
+  monitor: val_loss
+  regressor_ckpt: null
+  weight_count: # sqrt
+  with_passage: true
+  freeze_layers: false
+  freeze_layer_num: 6
+  news_dim: 768
+  num_attention_heads: 16
+  word_embedding_dim: 768
+  news_query_vector_dim: 200
+  user_query_vector_dim: 200
+  user_log_length: 50
+  user_log_mask: True
+  num_words_title: 24
+  num_words_abstract: 50
+  num_words_body: 400
+  npratio: 4
+  drop_rate: 0
+  news_attributes: ['title'] # ['title', 'abstract', 'body']
+  use_padded_news_embedding: false
+  filter_num: 0
+B:
+  load_ckpt: null
+  load_encoded_embeddings: true
+  freeze_item_emb_after_init: false
+  batch_size: 256
+  kt_ckpt: null
+  d_k: 48
+  d_v: 48
+  lr: 0.001
+  lm_lr: 0.0001
+  lm_batch_size: 8
+  lm_warmup: 40
+  change_kt_emb: false
+  val_check_interval: 1.0
+  alternate_by_epoch: true
+  lm_lr_decay_rate: 0.1
+  use_dropout_before_pooling: false
+  base_lm:
+    use_finetuned: False
+    model: 'nreimers/TinyBERT_L-6_H-768_v2' # "bert-base-uncased"
+    # pretrained: nreimers/TinyBERT_L-6_H-768_v2
+    batch_size: 10
+    text_embedding_dim: 768
+    max_seq_len: 512
+    pooling: mean
+  max_epochs: 500
+  change_all_qid_for_test: false
+  patience: 10
+  use_wandb: true
+#  exp_name: regressor
+#  regressor_batch_size: 32
+  monitor: val_loss
+  regressor_ckpt: null
+  weight_count: # sqrt
+  with_passage: true
+  freeze_layers: false
+  freeze_layer_num: 6
+  news_dim: 768
+  num_attention_heads: 16
+  word_embedding_dim: 768
+  news_query_vector_dim: 200
+  user_query_vector_dim: 200
+  user_log_length: 50
+  user_log_mask: True
+  num_words_title: 24
+  num_words_abstract: 50
+  num_words_body: 400
+  npratio: 4
+  drop_rate: 0
+  news_attributes: ['title']
+  use_padded_news_embedding: false
+  filter_num: 0
+C:
+  load_ckpt: null
+  load_encoded_embeddings: true
+  freeze_item_emb_after_init: false
+  batch_size: 256
+  kt_ckpt: null
+  d_k: 48
+  d_v: 48
+  lr: 0.0001
+  lm_lr: 0.0001
+  lm_batch_size: 50
+  lm_warmup: 40
+  change_kt_emb: false
+  val_check_interval: 1.0
+  alternate_by_epoch: true
+  lm_lr_decay_rate: 0.1
+  use_dropout_before_pooling: false
+  base_lm:
+    use_finetuned: False
+    model: 'nreimers/TinyBERT_L-6_H-768_v2' # "bert-base-uncased"
+    # pretrained: nreimers/TinyBERT_L-6_H-768_v2
+    batch_size: 10
+    text_embedding_dim: 768
+    max_seq_len: 512
+    pooling: init_mean
+  max_epochs: 500
+  change_all_qid_for_test: false
+  patience: 10
+  use_wandb: true
+  exp_name: regressor
+  regressor_batch_size: 32
+  monitor: val_loss
+  regressor_ckpt: null
+  weight_count: sqrt
+  with_passage: true
+  freeze_layers: false
+  freeze_layer_num: 6
+  news_dim: 768
+  num_attention_heads: 16
+  word_embedding_dim: 768
+  news_query_vector_dim: 200
+  user_query_vector_dim: 200
+  user_log_length: 50
+  user_log_mask: True
+  num_words_title: 24
+  num_words_abstract: 50
+  num_words_body: 50
+  npratio: 4
+  drop_rate: 0
+  news_attributes: ['title']
+  use_padded_news_embedding: false
+  filter_num: 0
+D:
+  load_ckpt: null
+  base_lm:
+    model: 'nreimers/TinyBERT_L-6_H-768_v2' # "bert-base-uncased"
+    use_finetuned: false
+    pooling: att
+    pretrained: nreimers/TinyBERT_L-6_H-768_v2
+    batch_size: 1
+    text_embedding_dim: 768
+    reduce_dim: false
+    max_seq_len: 512
+  use_dropout_before_pooling: true
+  use_exp_c_kt_module: false
+  batch_size: 4
+  random_weights: false
+  with_passage: true
+  kt_ckpt: null
+  lr: 0.00001
+  d_k: 48
+  d_v: 48
+  regressor_ckpt: null
+  val_check_interval: 0.5
+  patience: 10
+  max_epochs: 100
+  freeze_layers: false
+  freeze_layer_num: 7
+  news_dim: 768
+  num_attention_heads: 16
+  word_embedding_dim: 768
+  news_query_vector_dim: 200
+  user_query_vector_dim: 200
+  user_log_length: 50
+  user_log_mask: True
+  num_words_title: 24
+  num_words_abstract: 50
+  num_words_body: 400
+  npratio: 4
+  drop_rate: 0
+  news_attributes: ['title', 'abstract', 'body']
+  use_padded_news_embedding: false
+  filter_num: 0
+gpus: 7
+num_workers: 8
+use_pretrain_news_encoder: False
+prepare_dataset: false

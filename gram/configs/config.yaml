@@ -1,0 +1,266 @@
+log_root: "YOUR_ROOT_DIR"
+ckt_dataset_type: toeic
+seed: 0
+current_stage: first_stage
+experiment_type:
+  first_stage: Vanilla
+  second_stage: # B
+  third_stage: null
+  infer_stage: null
+exp_name: "RUN_NAME"
+model_name: dkt
+Vanilla:
+  batch_size: 256
+  lr: 0.001
+  val_check_interval: 1.0
+  patience: 5
+  max_epochs: 100
+  kt_ckpt:
+  with_passage: true
+Alternating:
+  load_encoded_embeddings: true
+  freeze_item_emb_after_init: false
+  batch_size: 16
+  kt_ckpt: null
+  lr: 0.001
+  lm_lr: 0.001
+  lm_warmup: 40
+  change_kt_emb: false
+  val_check_interval: 1.0
+  alternate_by_epoch: true
+  lm_lr_decay_rate: 0.1
+  base_lm:
+    use_finetuned: False
+    model: SBERT
+    pretrained: nreimers/TinyBERT_L-6_H-768_v2
+    batch_size: 10
+    text_embedding_dim: 768
+    max_seq_len: 512
+    pooling: mean
+  max_epochs: 200
+  change_all_qid_for_test: false
+  patience: 10
+  use_wandb: true
+  exp_name: regressor
+  regressor_batch_size: 32
+  monitor: val_loss
+  regressor_ckpt: null
+  weight_count: sqrt
+  with_passage: true
+  freeze_layers: false
+  freeze_layer_num: 6
+A:
+  base_regressor: Ridge
+  batch_size: 256
+  lr: 0.0001
+  val_check_interval: 0.5
+  patience: 5
+  max_epochs: 100
+  kt_ckpt: null
+B:
+  base_lm:
+    model: SBERT
+    pretrained: nreimers/TinyBERT_L-6_H-768_v2
+    batch_size: 10
+    text_embedding_dim: 768
+    max_seq_len: 512
+    pooling: mean
+  max_epochs: 100
+  change_all_qid_for_test: false
+  patience: 10
+  use_wandb: true
+  exp_name: regressor
+  regressor_batch_size: 10
+  lr: 0.00001
+  val_check_interval: 1.0
+  monitor: val_loss
+  kt_ckpt: null
+  batch_size: 16
+  regressor_ckpt: null
+  use_sim: false
+  epoch_sim: 100
+  sim_trained: false
+  data_processed: true
+  sanity_check: false
+  weight_count: sqrt
+  freeze_layers: false
+  alternate_by_epoch: false
+  with_passage: true
+C:
+  base_lm:
+    model: SBERT
+    pretrained: nreimers/TinyBERT_L-6_H-768_v2
+    batch_size: 10
+    text_embedding_dim: 768
+    max_seq_len: 512
+  load_encoded_embeddings: true
+  freeze_item_emb_after_init: false
+  batch_size: 256
+  kt_ckpt: null
+  lr: 0.0001
+  val_check_interval: 1.0
+  max_epochs: 100
+  patience: 5
+  with_passage: true
+D:
+  base_lm:
+    model: SBERT
+    use_finetuned: false
+    pooling: mean
+    pretrained: nreimers/TinyBERT_L-6_H-768_v2
+    batch_size: 1
+    text_embedding_dim: 768
+    reduce_dim: false
+    max_seq_len: 512
+  use_exp_c_kt_module: false
+  batch_size: 32
+  random_weights: false
+  with_passage: true
+  kt_ckpt: null
+  lr: 0.0001
+  regressor_ckpt: null
+  val_check_interval: 1.0
+  patience: 10
+  max_epochs: 100
+  freeze_layers: false
+  freeze_layer_num: 7
+train:
+  encoder_layer_count: 2
+  decoder_layer_count: 2
+  head_count: 1
+  dim_model: 768
+  dim_feedforward: 128
+  dropout_rate: 0.2
+  optimizer: adam
+duolingo:
+  user_base_split: True
+  language: french
+  monitor: val_auc
+  monitor_mode: max
+  embed:
+    positional: 16
+    enc_feature:
+      shifted_item_id: 768
+      shifted_is_correct: 16
+    dec_feature:
+      shifted_item_id: 1
+    pad_value:
+      item_id: 0
+      is_correct: 2
+    start_token:
+      item_id: 0
+      is_correct: 2
+  data:
+    using_features:
+    - is_correct
+    - item_id
+    dataset_type: toeic
+    root: "YOUR_DIR"
+    min_num_interactions: 10
+    max_num_interactions: 50000
+    min_correct_rate: 0.1
+    max_seq_len: 100
+    max_item_id: 4331
+    lstm_seq_len: 20
+  am:
+    pre_transform_opt: RandomWindow
+    split:
+    - 1.0
+    - 0
+    random_split: false
+  warmup: 40
+  run_test_as_val: true
+poj:
+  monitor: val_auc
+  monitor_mode: max
+  embed:
+    positional: 16
+    enc_feature:
+      shifted_item_id: 768
+      shifted_is_correct: 16
+    dec_feature:
+      shifted_item_id: 1
+    pad_value:
+      item_id: 0
+      is_correct: 2
+    start_token:
+      item_id: 0
+      is_correct: 2
+  data:
+    using_features:
+    - is_correct
+    - item_id
+    dataset_type: toeic
+    root: "DATA_DIR"
+    min_num_interactions: 2
+    max_num_interactions: 50000
+    min_correct_rate: 0.1
+    max_seq_len: 100
+    max_item_id: 4055
+    lstm_seq_len: 512
+  am:
+    pre_transform_opt: RandomWindow
+    split:
+    - 1.0
+    - 0
+    random_split: false
+  warmup: 400
+  run_test_as_val: true
+toeic:
+  monitor: val_loss
+  monitor_mode: min
+  embed:
+    positional: 16
+    enc_feature:
+      shifted_item_id: 768
+      shifted_part_id: 16
+      shifted_is_correct: 16
+      shifted_timeliness: 16
+    dec_feature:
+      shifted_item_id: 1
+    pad_value:
+      item_id: 0
+      part_id: 0
+      is_correct: 2
+      timeliness: 2
+    start_token:
+      item_id: 0
+      part_id: 0
+      is_correct: 2
+      timeliness: 2
+  data:
+    using_features:
+    - is_correct
+    - item_id
+    - part_id
+    - timeliness
+    ckt_dataset_type: toeic
+    dataset_type: toeic
+    root: "DATA_DIR"
+    min_num_interactions: 10
+    max_num_interactions: 50000
+    min_correct_rate: 0.1
+    max_seq_len: 100
+    max_item_id: 19398
+    max_part_id: 8
+    max_part: 8
+    lstm_seq_len: 512
+  am:
+    pre_transform_opt: RandomWindow
+    split:
+    - 0.9
+    - 0.1
+    random_split: false
+  warmup: 4000
+  run_test_as_val: true
+factor: 1
+gpus: 7
+num_workers: 16
+train_mode: pretrain
+use_wandb: true
+limit_train_batches: 1.0
+param_shared: true
+add_bias: false
+is_testing: false
+infer:
+  save_embeddings: false
