@@ -29,8 +29,8 @@ from omegaconf.dictconfig import DictConfig
 from tqdm import tqdm
 
 from torch.utils.data import DataLoader, TensorDataset
-from repoc_content_kt.models.components.SBERT import SBERT
-from repoc_content_kt.models.components.sbert_regressor import LightningRegressor
+from gram.knowledge_tracing.components.SBERT import SBERT
+from gram.knowledge_tracing.components.sbert_regressor import LightningRegressor
 from sentence_transformers.evaluation import EmbeddingSimilarityEvaluator, SimilarityFunction
 
 import gc

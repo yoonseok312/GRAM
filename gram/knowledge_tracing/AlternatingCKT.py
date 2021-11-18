@@ -16,8 +16,8 @@ from magneto.train.schedulers import get_noam_scheduler
 import pandas as pd
 
 from torch.utils.data import DataLoader, TensorDataset
-from repoc_content_kt.models.components.sbert_regressor import SBERTRegressor
-from repoc_content_kt.models.content_dkt import LightningContentDKT
+from gram.knowledge_tracing.components.sbert_regressor import SBERTRegressor
+from gram.knowledge_tracing.content_dkt import LightningContentDKT
 
 class EpochwiseAlternatingCKT(LightningContentDKT):
     def __init__(self, cfg: omegaconf.dictconfig.DictConfig) -> None:

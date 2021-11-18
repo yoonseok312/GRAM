@@ -4,8 +4,8 @@ import torch
 import torch.nn as nn
 import omegaconf
 import pickle
-from repoc_content_kt.models.components.SBERT import SBERT, CKTAdditiveAttention
-from repoc_content_kt.models.components.eernn import BidirectionalLSTM, TransformerEncoder
+from gram.knowledge_tracing.components.SBERT import SBERT, CKTAdditiveAttention
+from gram.knowledge_tracing.components.eernn import BidirectionalLSTM, TransformerEncoder
 from torchtext.legacy import data
 from torchtext.vocab import Vectors
 from torchtext.legacy import datasets

@@ -14,10 +14,10 @@ from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.callbacks import ModelCheckpoint
 from omegaconf.dictconfig import DictConfig
 from omegaconf import OmegaConf
-from repoc_content_kt.models.content_dkt import LightningContentDKT
+from gram.knowledge_tracing.content_dkt import LightningContentDKT
 
-from repoc_content_kt.datasets.content_toeic_dataset import content_data
-from repoc_content_kt.scripts.helpers.pipelines import (
+from gram.datasets.content_toeic_dataset import content_data
+from gram.scripts.helpers.pipelines import (
     get_model,
     pipeline_A,
     pipeline_B,
@@ -25,7 +25,7 @@ from repoc_content_kt.scripts.helpers.pipelines import (
     # pipeline_D,
     # pipeline_C_to_D,
 )
-from repoc_common.utils import save_cfg
+from gram.utils import utils
 import wandb
 from tqdm import tqdm
 import pandas as pd
@@ -126,7 +126,6 @@ def main(cfg: DictConfig, data_root: str, log_dir: str, ckpt_path: str = None, r
             model = pipeline_B(model, cfg, log_dir)
         # FIXME: Add exp B
         print('testing...')
-        # wandb.init(project='pipeline_B', name=cfg.exp_name)
         trainer.test(model, test_dataloaders=data_loaders["test"])
         if cfg.experiment_type.second_stage is None or cfg.experiment_type.third_stage is None:
             exit()
@@ -137,12 +136,6 @@ def main(cfg: DictConfig, data_root: str, log_dir: str, ckpt_path: str = None, r
             params = model.base_model.enc_embed.embed_feature.shifted_item_id.parameters()
             for param in params:
                 param.requires_grad = False
-
-    # elif cfg.experiment_type[cfg.current_stage] == 'D':
-    #     if cfg.current_stage == 'second_stage':
-    #         model = pipeline_D(model, cfg, ckpt_path=ckpt_path)
-    #     else:
-    #         model = pipeline_D(model, cfg, ckpt_path=ckpt_path)
 
     print(model)
 
@@ -167,11 +160,6 @@ def main(cfg: DictConfig, data_root: str, log_dir: str, ckpt_path: str = None, r
             best_model = pipeline_A(best_model, cfg)
     elif cfg.experiment_type[cfg.current_stage] == 'B':
         best_model = pipeline_B(best_model, cfg, log_dir)
-    # elif cfg.expreriment_type[cfg.current_stage] == 'C_to_D':
-    #     cfg.expreriment_type[cfg.current_stage] = 'D'
-    #     print("Experiment type changed to D")
-    #     best_model = pipeline_C_to_D(best_model, cfg, log_dir, data_loaders["train"], data_loaders["val"])
-    # wandb.init(project='content_kt', name=cfg.exp_name)
 
     if cfg.experiment_type[cfg.current_stage] == "Alternating":
         if cfg.ckt_dataset_type == 'toeic':
@@ -198,27 +186,19 @@ def main(cfg: DictConfig, data_root: str, log_dir: str, ckpt_path: str = None, r
                 best_model.base_model.enc_embed.embed_feature.shifted_item_id.weight.data[
                     cid
                 ] = best_model.lm.base_model(torch.Tensor([cid])).reshape(-1)
-        # else:
-        #     for cid in cold_start_ids:
-        #         best_model.base_model.enc_embed.embed_feature.shifted_item_id.weight.data[
-        #             cid
-        #         ] = best_model.lm.base_model(torch.Tensor([cid])).reshape(-1)
 
     trainer.test(best_model, test_dataloaders=data_loaders["test"])
     return best_val_ckpt
 
 
 if __name__ == "__main__":
-    root = "/tmp/pycharm_project_295/repoc_content_kt"
-    # root = "/tmp/pycharm_project_971/research-poc/repoc_content_kt"
-    # root = "/root/research-poc/repoc_content_kt"
+    root = "/tmp/pycharm_project_474/GRAM/gram"
 
     script_name = os.path.splitext(os.path.basename(__file__))[0]  # "run_am"
     cfg_file = "config.yaml"
     config = OmegaConf.load(os.path.join(root, "configs", cfg_file))
     config = OmegaConf.merge(config, OmegaConf.from_cli())
     pl.seed_everything(config.seed, workers = True)
-    # cur_time = datetime.now().replace(microsecond=0).isoformat()
     if not os.path.isdir(os.path.join(root, "logs")):
         os.mkdir(os.path.join(root, "logs"))
 

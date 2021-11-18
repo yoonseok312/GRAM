@@ -26,12 +26,12 @@ from omegaconf.dictconfig import DictConfig
 from tqdm import tqdm
 
 from torch.utils.data import DataLoader, TensorDataset
-from repoc_content_kt.models.content_all_item_kt import LightningContentAllItemKT
-from repoc_content_kt.models.content_saint_kt import ContentSaintModel
-from repoc_content_kt.models.content_dkt import LightningContentDKT
-from repoc_content_kt.models.AlternatingCKT import EpochwiseAlternatingCKT
-from repoc_content_kt.models.components.SBERT import SBERT
-from repoc_content_kt.models.components.sbert_regressor import LightningRegressor
+from gram.knowledge_tracing.content_all_item_kt import LightningContentAllItemKT
+from gram.knowledge_tracing.content_saint_kt import ContentSaintModel
+from gram.knowledge_tracing.content_dkt import LightningContentDKT
+from gram.knowledge_tracing.AlternatingCKT import EpochwiseAlternatingCKT
+from gram.knowledge_tracing.components.SBERT import SBERT
+from gram.knowledge_tracing.components.sbert_regressor import LightningRegressor
 from sentence_transformers.evaluation import EmbeddingSimilarityEvaluator, SimilarityFunction
 
 import gc

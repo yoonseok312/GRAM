@@ -12,12 +12,9 @@ import omegaconf
 import torch.nn.functional as F
 import pickle
 
-from repoc_content_kt.models.components.input_embedding import AllItemInputEmbedding
-from repoc_content_kt.models.components.SBERT import SBERT
-from repoc_common import utils
-
-# from magneto.train.schedulers import get_noam_scheduler
-from repoc_content_kt.models.content_all_item_kt import ContentAllItemGenerator, LightningContentAllItemKT
+from gram.knowledge_tracing.components.input_embedding import AllItemInputEmbedding
+from gram.knowledge_tracing.components.SBERT import SBERT
+from gram.knowledge_tracing.content_all_item_kt import ContentAllItemGenerator, LightningContentAllItemKT
 
 class ContentDKT(nn.Module):
     """

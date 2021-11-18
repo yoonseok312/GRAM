@@ -10,7 +10,7 @@ from sklearn.metrics import roc_auc_score
 from torch.nn import functional as F
 import pickle
 
-from repoc_content_kt.models.content_saint_base import ContentSaintBaseModel
+from gram.knowledge_tracing.content_saint_base import ContentSaintBaseModel
 
 
 def retrieve_from_tensor_with_mask(tensor: torch.Tensor, mask: torch.LongTensor):

@@ -12,8 +12,8 @@ import omegaconf
 import torch.nn.functional as F
 import pickle
 
-from repoc_content_kt.models.components.input_embedding import AllItemInputEmbedding
-from repoc_content_kt.models.components.SBERT import SBERT, CKTAdditiveAttention
+from gram.knowledge_tracing.components.input_embedding import AllItemInputEmbedding
+from gram.knowledge_tracing.components.SBERT import SBERT, CKTAdditiveAttention
 from repoc_common import utils
 
 import wandb

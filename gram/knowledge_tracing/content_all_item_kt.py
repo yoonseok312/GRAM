@@ -16,16 +16,14 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 
 import copy
 
+from gram.knowledge_tracing.components.input_embedding import AllItemInputEmbedding
+from gram.knowledge_tracing.components.SBERT import SBERT
+from gram.knowledge_tracing.components.sbert_regressor import LightningRegressor
 
-from repoc_content_kt.models.components.input_embedding import AllItemInputEmbedding
-from repoc_content_kt.models.components.SBERT import SBERT
-from repoc_common import utils
-from repoc_content_kt.models.components.sbert_regressor import LightningRegressor
-
-from magneto.train.schedulers import get_noam_scheduler
+from gram.utils.schedulers import get_noam_scheduler
 
 from torch.utils.data import DataLoader, TensorDataset
-from repoc_content_kt.models.components.sbert_regressor import LightningRegressor
+from gram.knowledge_tracing.components.sbert_regressor import LightningRegressor
 
 
 class ContentAllItemGenerator(nn.Module):

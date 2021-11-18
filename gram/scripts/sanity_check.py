@@ -13,7 +13,7 @@ from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.callbacks import ModelCheckpoint
 from omegaconf.dictconfig import DictConfig
 from omegaconf import OmegaConf
-from repoc_content_kt.models.content_dkt import LightningContentDKT
+from gram.knowledge_tracing.content_dkt import LightningContentDKT
 
 from repoc_content_kt.datasets.content_toeic_dataset import content_data
 from repoc_content_kt.scripts.helpers.pipelines import (

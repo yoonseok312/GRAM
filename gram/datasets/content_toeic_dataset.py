@@ -1,4 +1,4 @@
-from repoc_kt.datasets.am_dataset import get_path_dict
+from gram.utils import utils
 from typing import (
     Any,
     List,
@@ -15,7 +15,7 @@ from blink.data.transforms import (
 )
 from gram.utils.utils import StandardToeicInteractionDataset
 from magneto.data.utils.utils_datasets import dataset_split
-from repoc_kt.datasets.am_dataset import (
+from gram.utils.utils import (
     get_pre_transform,
     get_standard_collate_fn
 )

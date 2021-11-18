@@ -7,7 +7,7 @@ import omegaconf
 import torch
 import torch.nn as nn
 
-from repoc_content_kt.models.components.input_embedding import SaintInputEmbedding
+from gram.knowledge_tracing.components.input_embedding import SaintInputEmbedding
 
 
 class Generator(nn.Module):
