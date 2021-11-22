@@ -9,3 +9,6 @@ To run models, use `run_script.py` for knowledge tracing and `run_pl_nrms.py` fo
 pip install -r requirements.txt
 pip install -e gram
 ```
+
+Datasets can be found [here](https://tinyurl.com/gram-datasets).
+
