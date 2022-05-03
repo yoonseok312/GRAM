@@ -1,6 +1,6 @@
-# GRAM
+# GRAM [NAACL 2022 Main Conference]
 
-Source code for GRAM.
+Official PyTorch Implementation of [GRAM: Fast Fine-tuning of Pre-trained Language Models for Content-based Collaborative Filtering](https://arxiv.org/abs/2204.04179).
 Along with Knowledge Tracing and News Recommendation codebase, we provide a simple MNIST example to play around with GRAM. 
 
 Below `gram` folder, you can find respective models for knowledge tracing and news recommendation in `knowledge_tracing` and `news_recommendation` repo. 
