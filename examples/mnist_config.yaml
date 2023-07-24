@@ -1,7 +1,0 @@
-mode: D
-ktlr: 0.01
-lmlr: 0.01
-optimizer: Adam
-momentum: 0.9
-alternating_interval: 1 # for one epoch set to 938
-gpus: 0
