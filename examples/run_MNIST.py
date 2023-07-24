@@ -54,21 +54,16 @@ class MyDataset(Dataset):
 
 def main():
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + "/examples"
-    # root = "YOUR_ROOT_DIR"
-    # root = "/tmp/pycharm_project_971/research-poc/repoc_content_kt"
-    # root = "/root/research-poc/repoc_content_kt"
-
-    # script_name = os.path.splitext(os.path.basename(__file__))[0]  # "run_am"
     cfg_file = "mnist_config.yaml"
     config = OmegaConf.load(os.path.join(root, "configs", cfg_file))
     config = OmegaConf.merge(config, OmegaConf.from_cli())
     mode = config.mode
     print(config)
     if mode == "alt":
-        exp_name = f"MNIST_adam_fix_alt_step{config.alternating_interval}_{config.optimizer}_ktlr{config.ktlr}_lmlr{config.lmlr}_m{config.momentum}"
-    elif mode == "D":
+        exp_name = f"MNIST_demo_alt_step{config.alternating_interval}_{config.optimizer}_ktlr{config.ktlr}_lmlr{config.lmlr}_m{config.momentum}"
+    elif mode == "e2e":
         exp_name = (
-            f"MNIST_adam_fix_D_{config.optimizer}_lr{config.ktlr}_m{config.momentum}"
+            f"MNIST_demo_e2e_{config.optimizer}_lr{config.ktlr}_m{config.momentum}"
         )
     else:
         AssertionError()

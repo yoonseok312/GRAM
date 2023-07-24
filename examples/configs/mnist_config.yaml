@@ -1,6 +1,6 @@
-mode: D
-ktlr: 0.001
-lmlr: 0.001
+mode: alt
+ktlr: 0.0001
+lmlr: 0.0001
 optimizer: Adam
 momentum: 0
 alternating_interval: 1 # for one epoch set to 938
