@@ -77,7 +77,6 @@ class ContentAllItemKT(nn.Module):
     def __init__(self, config) -> None:
         super(ContentAllItemKT, self).__init__()
         self.cfg = config
-        print("init model")
         self.enc_embed = AllItemInputEmbedding(config, "encoder")
         # self.dec_embed = InputEmbedding(config, "decoder")
 
@@ -225,7 +224,6 @@ class LightningContentAllItemKT(pl.LightningModule):
 
                 if cfg.ckt_dataset_type == "toeic":
                     word_embedding_model = self.SBERT._first_module()
-                    print("Adding special tokens")
                     tokens = ["[Q]", "[C]", "[P]", "[MASK]"]
                     word_embedding_model.tokenizer.add_tokens(
                         tokens, special_tokens=True
