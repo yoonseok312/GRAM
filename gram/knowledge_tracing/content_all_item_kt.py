@@ -12,7 +12,10 @@ import omegaconf
 import torch.nn.functional as F
 import pickle
 import wandb
-from gram.knowledge_tracing.components.eernn import BidirectionalLSTM, TransformerEncoder
+from gram.knowledge_tracing.components.eernn import (
+    BidirectionalLSTM,
+    TransformerEncoder,
+)
 from sentence_transformers import models
 from gram.knowledge_tracing.components.SBERT import SBERT, CKTAdditiveAttention
 from pytorch_lightning.callbacks import ModelCheckpoint
@@ -38,18 +41,24 @@ class ContentAllItemGenerator(nn.Module):
         super(ContentAllItemGenerator, self).__init__()
         self.cfg = config
 
-        if self.cfg.experiment_type != 'D' or (self.cfg.experiment_type == 'D' and self.cfg.D.use_exp_c_kt_module):
+        if self.cfg.experiment_type != "D" or (
+            self.cfg.experiment_type == "D" and self.cfg.D.use_exp_c_kt_module
+        ):
             if self.cfg.param_shared:
                 self.question_embedding = enc_embed.embed_feature.shifted_item_id.weight
             else:
                 self.generator = nn.Linear(dim_model, num_items)
         if self.cfg.add_bias:
             self.bias = torch.nn.Parameter(
-                torch.zeros(self.cfg[self.cfg.ckt_dataset_type].data.max_item_id + 1), requires_grad=True
+                torch.zeros(self.cfg[self.cfg.ckt_dataset_type].data.max_item_id + 1),
+                requires_grad=True,
             )
 
     def forward(self, x, sbert_embed):
-        if self.cfg.experiment_type[self.cfg.current_stage] == 'D' and self.cfg.param_shared:
+        if (
+            self.cfg.experiment_type[self.cfg.current_stage] == "D"
+            and self.cfg.param_shared
+        ):
             output = torch.matmul(x, torch.transpose(sbert_embed, 0, 1))
         elif self.cfg.param_shared:
             output = torch.matmul(x, torch.transpose(self.question_embedding, 0, 1))
@@ -96,7 +105,10 @@ class ContentAllItemKT(nn.Module):
         )
 
         self.generator = ContentAllItemGenerator(
-            self.cfg.train.dim_model, self.cfg[self.cfg.ckt_dataset_type].data.max_item_id, self.enc_embed, self.cfg
+            self.cfg.train.dim_model,
+            self.cfg[self.cfg.ckt_dataset_type].data.max_item_id,
+            self.enc_embed,
+            self.cfg,
         )
 
     def forward(
@@ -112,9 +124,9 @@ class ContentAllItemKT(nn.Module):
 
         # 3. Prepare masks for transformer inference
         # [[3], [2], [5]] -> [[ffftt], [ffttt], [fffff]]
-        subseq_mask = utils.generate_square_subsequent_mask(self.cfg[self.cfg.ckt_dataset_type].data.max_seq_len).to(
-            enc_input.device
-        )
+        subseq_mask = utils.generate_square_subsequent_mask(
+            self.cfg[self.cfg.ckt_dataset_type].data.max_seq_len
+        ).to(enc_input.device)
 
         # get transformer output
         # tr_output = self.transformer(
@@ -148,7 +160,7 @@ class LightningContentAllItemKT(pl.LightningModule):
         self.lm_output = []
         self.alternating_interval = cfg.Alternating.alternating_interval
         self.questions_to_regress = []
-        self.mode = 'kt'
+        self.mode = "kt"
         self.max_auc = 0
         # self.patience = 0
         self.start = torch.cuda.Event(enable_timing=True)
@@ -165,44 +177,88 @@ class LightningContentAllItemKT(pl.LightningModule):
         # breakpoint()
         # self.tokenizer = AutoTokenizer.from_pretrained(cfg[cfg.experiment_type[cfg.current_stage]].base_lm.pretrained)
         # self.base_lm = KtTextEncoder(cfg, bert_model, self.tokenizer)
-        if 'D' in [cfg.experiment_type['first_stage'], cfg.experiment_type['second_stage'],
-                   cfg.experiment_type['third_stage'], cfg.experiment_type['infer_stage']] or ('Alternating' in [cfg.experiment_type['first_stage'], cfg.experiment_type['second_stage'],
-                   cfg.experiment_type['third_stage'], cfg.experiment_type['infer_stage']] and not cfg.Alternating.alternate_by_epoch):
+        if "D" in [
+            cfg.experiment_type["first_stage"],
+            cfg.experiment_type["second_stage"],
+            cfg.experiment_type["third_stage"],
+            cfg.experiment_type["infer_stage"],
+        ] or (
+            "Alternating"
+            in [
+                cfg.experiment_type["first_stage"],
+                cfg.experiment_type["second_stage"],
+                cfg.experiment_type["third_stage"],
+                cfg.experiment_type["infer_stage"],
+            ]
+            and not cfg.Alternating.alternate_by_epoch
+        ):
             assert self.cfg.D.base_lm.text_embedding_dim == self.cfg.train.dim_model
-            if cfg.D.base_lm.model == 'SBERT':
+            if cfg.D.base_lm.model == "SBERT":
                 if cfg[cfg.experiment_type[cfg.current_stage]].base_lm.use_finetuned:
                     self.SBERT = SBERT(cfg.D.base_lm.pretrained)
                 else:
-                    word_embedding_model = models.Transformer(cfg.D.base_lm.pretrained, max_seq_length=cfg[
-                        cfg.experiment_type[cfg.current_stage]].base_lm.max_seq_len)
-                    if self.cfg[self.cfg.experiment_type[self.cfg.current_stage]].base_lm.pooling != 'att':
-                        pooling_model = models.Pooling(word_embedding_model.get_word_embedding_dimension(),
-                                                       pooling_mode=cfg.D.base_lm.pooling)
+                    word_embedding_model = models.Transformer(
+                        cfg.D.base_lm.pretrained,
+                        max_seq_length=cfg[
+                            cfg.experiment_type[cfg.current_stage]
+                        ].base_lm.max_seq_len,
+                    )
+                    if (
+                        self.cfg[
+                            self.cfg.experiment_type[self.cfg.current_stage]
+                        ].base_lm.pooling
+                        != "att"
+                    ):
+                        pooling_model = models.Pooling(
+                            word_embedding_model.get_word_embedding_dimension(),
+                            pooling_mode=cfg.D.base_lm.pooling,
+                        )
                     else:
-                        pooling_model = models.Pooling(word_embedding_model.get_word_embedding_dimension(),
-                                                       pooling_mode='mean')
+                        pooling_model = models.Pooling(
+                            word_embedding_model.get_word_embedding_dimension(),
+                            pooling_mode="mean",
+                        )
                     self.SBERT = SBERT(modules=[word_embedding_model, pooling_model])
-                self.SBERT.max_seq_length = cfg[cfg.experiment_type[cfg.current_stage]].base_lm.max_seq_len
+                self.SBERT.max_seq_length = cfg[
+                    cfg.experiment_type[cfg.current_stage]
+                ].base_lm.max_seq_len
 
-                if cfg.ckt_dataset_type == 'toeic':
+                if cfg.ckt_dataset_type == "toeic":
                     word_embedding_model = self.SBERT._first_module()
                     print("Adding special tokens")
                     tokens = ["[Q]", "[C]", "[P]", "[MASK]"]
-                    word_embedding_model.tokenizer.add_tokens(tokens, special_tokens=True)
-                    word_embedding_model.auto_model.resize_token_embeddings(len(word_embedding_model.tokenizer))
-                elif cfg.ckt_dataset_type == 'poj':
-                    with open(f"{cfg[cfg.ckt_dataset_type].data.root}/poj_id_to_text_with_scraped_truncated.pkl",
-                              "rb") as handle:
+                    word_embedding_model.tokenizer.add_tokens(
+                        tokens, special_tokens=True
+                    )
+                    word_embedding_model.auto_model.resize_token_embeddings(
+                        len(word_embedding_model.tokenizer)
+                    )
+                elif cfg.ckt_dataset_type == "poj":
+                    with open(
+                        f"{cfg[cfg.ckt_dataset_type].data.root}/poj_id_to_text_with_scraped_truncated.pkl",
+                        "rb",
+                    ) as handle:
                         self.id_to_text = pickle.load(handle)
                 if cfg[cfg.experiment_type[cfg.current_stage]].freeze_layers:
                     auto_model = self.SBERT._first_module().auto_model
-                    modules = [auto_model.embeddings, *auto_model.encoder.layer[:cfg[
-                        cfg.experiment_type[cfg.current_stage]].freeze_layer_num]]  # Replace 5 by what you want
+                    modules = [
+                        auto_model.embeddings,
+                        *auto_model.encoder.layer[
+                            : cfg[
+                                cfg.experiment_type[cfg.current_stage]
+                            ].freeze_layer_num
+                        ],
+                    ]  # Replace 5 by what you want
                     print("Freezing LM layers")
                     for module in modules:
                         for param in module.parameters():
                             param.requires_grad = False
-                if self.cfg[self.cfg.experiment_type[self.cfg.current_stage]].base_lm.pooling == 'att':
+                if (
+                    self.cfg[
+                        self.cfg.experiment_type[self.cfg.current_stage]
+                    ].base_lm.pooling
+                    == "att"
+                ):
                     print("Attention based pooling")
                     self.att_pooling = CKTAdditiveAttention(d_h=768)
                 # auto_model = self.SBERT._first_module().auto_model
@@ -210,50 +266,77 @@ class LightningContentAllItemKT(pl.LightningModule):
                 # auto_model.train_adapter("poj")F
                 # for param in auto_model.parameters():
                 #     param.requires_grad = False
-            elif cfg.D.base_lm.model in ['LSTM', 'Transformer']:
-                TEXT = data.Field(sequential=True,
-                                  use_vocab=True,
-                                  tokenize=get_tokenizer("basic_english"),
-                                  lower=True,
-                                  batch_first=True,
-                                  # fix_length=20
-                                  )
-                if cfg.ckt_dataset_type == 'toeic':
+            elif cfg.D.base_lm.model in ["LSTM", "Transformer"]:
+                TEXT = data.Field(
+                    sequential=True,
+                    use_vocab=True,
+                    tokenize=get_tokenizer("basic_english"),
+                    lower=True,
+                    batch_first=True,
+                    # fix_length=20
+                )
+                if cfg.ckt_dataset_type == "toeic":
                     train_data, _ = TabularDataset.splits(
-                        path='.', train=f'{cfg[cfg.ckt_dataset_type].data.root}/toeic_text.csv',
-                        test=f'{cfg[cfg.ckt_dataset_type].data.root}/toeic_text.csv', format='csv',
-                        fields=[('text', TEXT)], skip_header=True)
-                elif cfg.ckt_dataset_type == 'poj':
-                    with open(f"{cfg[cfg.ckt_dataset_type].data.root}/poj_id_to_text_with_scraped_truncated.pkl",
-                              "rb") as handle:
+                        path=".",
+                        train=f"{cfg[cfg.ckt_dataset_type].data.root}/toeic_text.csv",
+                        test=f"{cfg[cfg.ckt_dataset_type].data.root}/toeic_text.csv",
+                        format="csv",
+                        fields=[("text", TEXT)],
+                        skip_header=True,
+                    )
+                elif cfg.ckt_dataset_type == "poj":
+                    with open(
+                        f"{cfg[cfg.ckt_dataset_type].data.root}/poj_id_to_text_with_scraped_truncated.pkl",
+                        "rb",
+                    ) as handle:
                         self.id_to_text = pickle.load(handle)
                     train_data, _ = TabularDataset.splits(
-                        path='.', train=f'{cfg[cfg.ckt_dataset_type].data.root}/poj_text_new_split.csv',
-                        test=f'{cfg[cfg.ckt_dataset_type].data.root}/poj_text_new_split.csv', format='csv',
-                        fields=[('text', TEXT)], skip_header=True)
-                elif cfg[cfg.ckt_dataset_type].language == 'french':
+                        path=".",
+                        train=f"{cfg[cfg.ckt_dataset_type].data.root}/poj_text_new_split.csv",
+                        test=f"{cfg[cfg.ckt_dataset_type].data.root}/poj_text_new_split.csv",
+                        format="csv",
+                        fields=[("text", TEXT)],
+                        skip_header=True,
+                    )
+                elif cfg[cfg.ckt_dataset_type].language == "french":
                     train_data, _ = TabularDataset.splits(
-                        path='.', train=f'{cfg[cfg.ckt_dataset_type].data.root}/duolingo_text.csv',
-                        test=f'{cfg[cfg.ckt_dataset_type].data.root}/duolingo_text.csv', format='csv',
-                        fields=[('text', TEXT)], skip_header=True)
-                elif cfg[cfg.ckt_dataset_type].language == 'spanish':
+                        path=".",
+                        train=f"{cfg[cfg.ckt_dataset_type].data.root}/duolingo_text.csv",
+                        test=f"{cfg[cfg.ckt_dataset_type].data.root}/duolingo_text.csv",
+                        format="csv",
+                        fields=[("text", TEXT)],
+                        skip_header=True,
+                    )
+                elif cfg[cfg.ckt_dataset_type].language == "spanish":
                     train_data, _ = TabularDataset.splits(
-                        path='.', train=f'{cfg[cfg.ckt_dataset_type].data.root}/duolingo_spanish_text_new_split.csv',
-                        test=f'{cfg[cfg.ckt_dataset_type].data.root}/duolingo_spanish_text_new_split.csv', format='csv',
-                        fields=[('text', TEXT)], skip_header=True)
+                        path=".",
+                        train=f"{cfg[cfg.ckt_dataset_type].data.root}/duolingo_spanish_text_new_split.csv",
+                        test=f"{cfg[cfg.ckt_dataset_type].data.root}/duolingo_spanish_text_new_split.csv",
+                        format="csv",
+                        fields=[("text", TEXT)],
+                        skip_header=True,
+                    )
                 MIN_FREQ = 1
                 EMBEDDING_DIM = 50
                 # vectors = Vectors(name="eng_w2v")
-                TEXT.build_vocab(train_data, min_freq=MIN_FREQ, vectors='glove.6B.50d')  # "glove.6B.50d"
-                print('Vocab size : {}'.format(len(TEXT.vocab)))
+                TEXT.build_vocab(
+                    train_data, min_freq=MIN_FREQ, vectors="glove.6B.50d"
+                )  # "glove.6B.50d"
+                print("Vocab size : {}".format(len(TEXT.vocab)))
                 if cfg.D.base_lm.model == "LSTM":
-                    self.content_encoder = BidirectionalLSTM(vocab_size=len(TEXT.vocab), embedding_dim=EMBEDDING_DIM,
-                                                             hidden_dim=384)
+                    self.content_encoder = BidirectionalLSTM(
+                        vocab_size=len(TEXT.vocab),
+                        embedding_dim=EMBEDDING_DIM,
+                        hidden_dim=384,
+                    )
                 elif cfg.D.base_lm.model == "Transformer":
                     print("Transformer")
-                    self.content_encoder = TransformerEncoder(vocab_size=len(TEXT.vocab), embedding_dim=EMBEDDING_DIM,
-                                                              hidden_dim=768,
-                                                              feed_forward_dim=128)
+                    self.content_encoder = TransformerEncoder(
+                        vocab_size=len(TEXT.vocab),
+                        embedding_dim=EMBEDDING_DIM,
+                        hidden_dim=768,
+                        feed_forward_dim=128,
+                    )
                 if not cfg.D.random_weights and not cfg.is_testing:
                     print("Copying weights")
                     self.content_encoder.embedding.weight.data.copy_(TEXT.vocab.vectors)
@@ -270,7 +353,8 @@ class LightningContentAllItemKT(pl.LightningModule):
                     seq_len = cfg[cfg.ckt_dataset_type].data.lstm_seq_len
                     if len(tokenized_id) < seq_len:
                         tokenized_id.extend(
-                            [1 for _ in range(seq_len - len(tokenized_id))])  # 20 for duolingo, 512 for toeic
+                            [1 for _ in range(seq_len - len(tokenized_id))]
+                        )  # 20 for duolingo, 512 for toeic
                     else:
                         tokenized_id = tokenized_id[:seq_len]
                     self.qid_to_tokenid[key] = tokenized_id
@@ -280,74 +364,111 @@ class LightningContentAllItemKT(pl.LightningModule):
         self.automatic_optimization = False
         # self.steps = 0
         # self.lm_steps = 0
-        if cfg.ckt_dataset_type == 'toeic':
-            with open(f"{cfg[cfg.ckt_dataset_type].data.root}/cold_start_ids_part_4_to_7.txt", "rb") as f:
+        if cfg.ckt_dataset_type == "toeic":
+            with open(
+                f"{cfg[cfg.ckt_dataset_type].data.root}/cold_start_ids_part_4_to_7.txt",
+                "rb",
+            ) as f:
                 self.cold_start_ids = pickle.load(f)
-        elif cfg.ckt_dataset_type == 'duolingo':
+        elif cfg.ckt_dataset_type == "duolingo":
             # if cfg[cfg.ckt_dataset_type].language == 'spanish':
             #     with open(f"{cfg[cfg.ckt_dataset_type].data.root}/spanish_item_id_to_text_test_csqe.pkl", "rb") as f:
             #         dic = pickle.load(f)
             #         self.cold_start_ids = list(dic.keys())
-            if cfg[cfg.ckt_dataset_type].language == 'spanish':
+            if cfg[cfg.ckt_dataset_type].language == "spanish":
                 if cfg[cfg.ckt_dataset_type].user_based_split:
-                    print('spanish user based split!!!!!!!')
-                    with open(f"{cfg[cfg.ckt_dataset_type].data.root}/spanish_csqs_newsplit.pkl",
-                              "rb") as f:
+                    print("spanish user based split!!!!!!!")
+                    with open(
+                        f"{cfg[cfg.ckt_dataset_type].data.root}/spanish_csqs_newsplit.pkl",
+                        "rb",
+                    ) as f:
                         self.cold_start_ids = pickle.load(f)
                 else:
-                    with open(f"{cfg[cfg.ckt_dataset_type].data.root}/spanish_item_id_to_text_test_csqe.pkl",
-                              "rb") as f:
+                    with open(
+                        f"{cfg[cfg.ckt_dataset_type].data.root}/spanish_item_id_to_text_test_csqe.pkl",
+                        "rb",
+                    ) as f:
                         dic = pickle.load(f)
                         self.cold_start_ids = list(dic.keys())
             else:
                 if cfg[cfg.ckt_dataset_type].user_based_split:
-                    with open(f"{cfg[cfg.ckt_dataset_type].data.root}/duolingo_item_id_to_text_test_csqe_newsplit_updated.pkl", "rb") as f:
+                    with open(
+                        f"{cfg[cfg.ckt_dataset_type].data.root}/duolingo_item_id_to_text_test_csqe_newsplit_updated.pkl",
+                        "rb",
+                    ) as f:
                         dic = pickle.load(f)
                         self.cold_start_ids = list(dic.keys())
                 else:
-                    with open(f"{cfg[cfg.ckt_dataset_type].data.root}/duolingo_item_id_to_text_test_csqe.pkl", "rb") as f:
+                    with open(
+                        f"{cfg[cfg.ckt_dataset_type].data.root}/duolingo_item_id_to_text_test_csqe.pkl",
+                        "rb",
+                    ) as f:
                         dic = pickle.load(f)
                         self.cold_start_ids = list(dic.keys())
-        elif cfg.ckt_dataset_type == 'poj':
-            with open(f"{cfg[cfg.ckt_dataset_type].data.root}/poj_csqs_new_split.pkl", "rb") as f:
+        elif cfg.ckt_dataset_type == "poj":
+            with open(
+                f"{cfg[cfg.ckt_dataset_type].data.root}/poj_csqs_new_split.pkl", "rb"
+            ) as f:
                 self.cold_start_ids = pickle.load(f)
-        if self.cfg.experiment_type[self.cfg.current_stage] == 'Alternating':
+        if self.cfg.experiment_type[self.cfg.current_stage] == "Alternating":
             self.lm = LightningRegressor(cfg)
-        if cfg.ckt_dataset_type == 'toeic':
+        if cfg.ckt_dataset_type == "toeic":
             if cfg[cfg.experiment_type[cfg.current_stage]].with_passage:
-                with open(f"{cfg[cfg.ckt_dataset_type].data.root}/toeic_id_to_text_special_tokens.pkl", "rb") as handle:
+                with open(
+                    f"{cfg[cfg.ckt_dataset_type].data.root}/toeic_id_to_text_special_tokens.pkl",
+                    "rb",
+                ) as handle:
                     self.id_to_text = pickle.load(handle)
             else:
-                with open(f"{cfg[cfg.ckt_dataset_type].data.root}/toeic_id_to_text.pkl", "rb") as handle:
+                with open(
+                    f"{cfg[cfg.ckt_dataset_type].data.root}/toeic_id_to_text.pkl", "rb"
+                ) as handle:
                     self.id_to_text = pickle.load(handle)
-        elif cfg.ckt_dataset_type == 'duolingo':
-            if cfg[cfg.ckt_dataset_type].language == 'french':
-                with open(f"{cfg[cfg.ckt_dataset_type].data.root}/duolingo_item_id_to_text.pkl", "rb") as handle:
+        elif cfg.ckt_dataset_type == "duolingo":
+            if cfg[cfg.ckt_dataset_type].language == "french":
+                with open(
+                    f"{cfg[cfg.ckt_dataset_type].data.root}/duolingo_item_id_to_text.pkl",
+                    "rb",
+                ) as handle:
                     self.id_to_text = pickle.load(handle)
-            elif cfg[cfg.ckt_dataset_type].language == 'spanish':
-                with open(f"{cfg[cfg.ckt_dataset_type].data.root}/spanish_item_id_to_text_all.pkl", "rb") as handle:
+            elif cfg[cfg.ckt_dataset_type].language == "spanish":
+                with open(
+                    f"{cfg[cfg.ckt_dataset_type].data.root}/spanish_item_id_to_text_all.pkl",
+                    "rb",
+                ) as handle:
                     self.id_to_text = pickle.load(handle)
-        elif cfg.ckt_dataset_type == 'poj':
+        elif cfg.ckt_dataset_type == "poj":
             print("Truncated text")
-            with open(f"{cfg[cfg.ckt_dataset_type].data.root}/poj_id_to_text_with_scraped_truncated.pkl", "rb") as handle:
+            with open(
+                f"{cfg[cfg.ckt_dataset_type].data.root}/poj_id_to_text_with_scraped_truncated.pkl",
+                "rb",
+            ) as handle:
                 self.id_to_text = pickle.load(handle)
 
         self.training_kt_module = True
         self.steps_per_epoch = 1
-        if self.cfg.experiment_type[self.cfg.current_stage] == 'Alternating' or self.cfg.experiment_type[self.cfg.current_stage] == 'D':
+        if (
+            self.cfg.experiment_type[self.cfg.current_stage] == "Alternating"
+            or self.cfg.experiment_type[self.cfg.current_stage] == "D"
+        ):
             self.automatic_optimization = False
         # breakpoint()
 
     def lm_forward(
-            self,
-            batch: Dict[str, torch.Tensor],
-            increment_seed=False,
-            # encoded_all: torch.Tensor,
+        self,
+        batch: Dict[str, torch.Tensor],
+        increment_seed=False,
+        # encoded_all: torch.Tensor,
     ):
-        if self.cfg[self.cfg.experiment_type[self.cfg.current_stage]].base_lm.model in ['LSTM', 'Transformer']:
+        if self.cfg[self.cfg.experiment_type[self.cfg.current_stage]].base_lm.model in [
+            "LSTM",
+            "Transformer",
+        ]:
             # embed_results.pop(0)
             item_ids = {item_id.item() for user in batch["item_id"] for item_id in user}
-            item_ids_list = [item_id for item_id in self.id_to_text.keys() if item_id in item_ids]
+            item_ids_list = [
+                item_id for item_id in self.id_to_text.keys() if item_id in item_ids
+            ]
             lstm_input = []
             for item in item_ids_list:
                 # padded = self.qid_to_tokenid[item]
@@ -363,18 +484,28 @@ class LightningContentAllItemKT(pl.LightningModule):
             item_ids_list = batch["item_id"][nonzeros[0], nonzeros[1]]
             item_ids_list = torch.unique(item_ids_list, sorted=False)
             item_ids_list = [x.item() for x in item_ids_list]
-            if self.cfg[self.cfg.experiment_type[self.cfg.current_stage]].base_lm.pooling == 'att':
+            if (
+                self.cfg[
+                    self.cfg.experiment_type[self.cfg.current_stage]
+                ].base_lm.pooling
+                == "att"
+            ):
                 torch.cuda.manual_seed(self.dropout_seed)
                 encoded_valid_ids = self.SBERT.encode(
                     sentences=[self.id_to_text[item_id] for item_id in item_ids_list],
-                    batch_size=self.cfg[self.cfg.experiment_type[self.cfg.current_stage]].base_lm.batch_size,
+                    batch_size=self.cfg[
+                        self.cfg.experiment_type[self.cfg.current_stage]
+                    ].base_lm.batch_size,
                     convert_to_tensor=True,
-                    output_value='token_embeddings',
+                    output_value="token_embeddings",
                     reduce_dim=self.cfg[
-                                   self.cfg.experiment_type[
-                                       self.cfg.current_stage]].base_lm.text_embedding_dim != 768,
+                        self.cfg.experiment_type[self.cfg.current_stage]
+                    ].base_lm.text_embedding_dim
+                    != 768,
                 )
-                encoded_valid_ids = [self.att_pooling(q_emb) for q_emb in encoded_valid_ids]
+                encoded_valid_ids = [
+                    self.att_pooling(q_emb) for q_emb in encoded_valid_ids
+                ]
                 encoded_valid_ids = torch.stack(encoded_valid_ids)
             else:
                 torch.cuda.manual_seed(self.dropout_seed)
@@ -389,14 +520,16 @@ class LightningContentAllItemKT(pl.LightningModule):
         return encoded_valid_ids, item_ids_list
 
     def lm_forward_id(
-            self,
-            item_ids_list,
-            increment_seed=False,
-            # filter_unique=True,
-            # encoded_all: torch.Tensor,
+        self,
+        item_ids_list,
+        increment_seed=False,
+        # filter_unique=True,
+        # encoded_all: torch.Tensor,
     ):
-        if self.cfg[self.cfg.experiment_type[self.cfg.current_stage]].base_lm.model in ['LSTM', 'Transformer']:
-
+        if self.cfg[self.cfg.experiment_type[self.cfg.current_stage]].base_lm.model in [
+            "LSTM",
+            "Transformer",
+        ]:
             lstm_input = []
             for item in item_ids_list:
                 lstm_input.append(torch.LongTensor(self.qid_to_tokenid[item]))
@@ -404,18 +537,28 @@ class LightningContentAllItemKT(pl.LightningModule):
             encoded_valid_ids = self.content_encoder(lstm_input)
 
         else:
-            if self.cfg[self.cfg.experiment_type[self.cfg.current_stage]].base_lm.pooling == 'att':
+            if (
+                self.cfg[
+                    self.cfg.experiment_type[self.cfg.current_stage]
+                ].base_lm.pooling
+                == "att"
+            ):
                 torch.cuda.manual_seed(self.dropout_seed)
                 encoded_valid_ids = self.SBERT.encode(
                     sentences=[self.id_to_text[item_id] for item_id in item_ids_list],
-                    batch_size=self.cfg[self.cfg.experiment_type[self.cfg.current_stage]].base_lm.batch_size,
+                    batch_size=self.cfg[
+                        self.cfg.experiment_type[self.cfg.current_stage]
+                    ].base_lm.batch_size,
                     convert_to_tensor=True,
-                    output_value='token_embeddings',
+                    output_value="token_embeddings",
                     reduce_dim=self.cfg[
-                                   self.cfg.experiment_type[
-                                       self.cfg.current_stage]].base_lm.text_embedding_dim != 768,
+                        self.cfg.experiment_type[self.cfg.current_stage]
+                    ].base_lm.text_embedding_dim
+                    != 768,
                 )
-                encoded_valid_ids = [self.att_pooling(q_emb) for q_emb in encoded_valid_ids]
+                encoded_valid_ids = [
+                    self.att_pooling(q_emb) for q_emb in encoded_valid_ids
+                ]
                 encoded_valid_ids = torch.stack(encoded_valid_ids)
             else:
                 torch.cuda.manual_seed(self.dropout_seed)
@@ -429,15 +572,15 @@ class LightningContentAllItemKT(pl.LightningModule):
                 self.dropout_seed += 1
         return encoded_valid_ids, item_ids_list
 
-
     def forward(
         self,
         batch: Dict[str, torch.Tensor],
         # encoded_all: torch.Tensor,
     ) -> Tuple[Dict[str, torch.Tensor], torch.Tensor]:
-        if self.cfg.experiment_type[self.cfg.current_stage] == 'D':
-
-            encoded_valid_ids, item_ids_list = self.lm_forward(batch, increment_seed=True)
+        if self.cfg.experiment_type[self.cfg.current_stage] == "D":
+            encoded_valid_ids, item_ids_list = self.lm_forward(
+                batch, increment_seed=True
+            )
             # breakpoint()
             encoded_all = []
 
@@ -446,7 +589,9 @@ class LightningContentAllItemKT(pl.LightningModule):
             for i in range(0, self.cfg[self.cfg.ckt_dataset_type].data.max_item_id):
                 if (j == len(item_ids_list) - 1) or (i < item_ids_list[j]):
                     encoded_all.append(
-                        torch.zeros(self.cfg.D.base_lm.text_embedding_dim, device="cuda")
+                        torch.zeros(
+                            self.cfg.D.base_lm.text_embedding_dim, device="cuda"
+                        )
                     )
                 else:
                     # breakpoint()
@@ -457,7 +602,10 @@ class LightningContentAllItemKT(pl.LightningModule):
             for user in batch["item_id"]:
                 text_embedding_user = []
                 for item_id in user:
-                    if item_id.item() != self.cfg[self.cfg.ckt_dataset_type].embed.pad_value.item_id:
+                    if (
+                        item_id.item()
+                        != self.cfg[self.cfg.ckt_dataset_type].embed.pad_value.item_id
+                    ):
                         item_embedding = encoded_all[item_id.item()]
                     else:
                         item_embedding = torch.zeros(
@@ -505,15 +653,22 @@ class LightningContentAllItemKT(pl.LightningModule):
             # breakpoint()
             return loss, label, prob, pred
         else:
-            if self.cfg.ckt_dataset_type in ['toeic', 'poj'] or self.cfg[self.cfg.ckt_dataset_type].user_based_split == True:
+            if (
+                self.cfg.ckt_dataset_type in ["toeic", "poj"]
+                or self.cfg[self.cfg.ckt_dataset_type].user_based_split == True
+            ):
                 nonzeros = torch.nonzero(~batch["pad_mask"], as_tuple=True)
                 label = batch["is_correct"][nonzeros[0], nonzeros[1]].float()
                 items = batch["item_id"][nonzeros[0], nonzeros[1]]
                 logits = logit[nonzeros[0], nonzeros[1]]
-                logit = torch.gather(logits, dim=-1, index=items.unsqueeze(-1)).squeeze()
+                logit = torch.gather(
+                    logits, dim=-1, index=items.unsqueeze(-1)
+                ).squeeze()
                 prob = logit.sigmoid()
                 pred = (prob > self.threshold).long()
-                loss = F.binary_cross_entropy_with_logits(logit, label, reduction="mean")
+                loss = F.binary_cross_entropy_with_logits(
+                    logit, label, reduction="mean"
+                )
                 if is_testing:
                     csqe_label, csqe_prob = self.csqe_label_and_prob(
                         logit, label, self.cold_start_ids, items
@@ -531,7 +686,9 @@ class LightningContentAllItemKT(pl.LightningModule):
                             logit, label, self.cold_start_ids, items
                         )
                     else:
-                        csqe_label, csqe_prob = torch.LongTensor([1, 0]), torch.LongTensor(
+                        csqe_label, csqe_prob = torch.LongTensor(
+                            [1, 0]
+                        ), torch.LongTensor(
                             [0, 1]
                         )  # to speed up training
                     non_csqe_label_last, non_csqe_prob_last = torch.LongTensor(
@@ -546,9 +703,13 @@ class LightningContentAllItemKT(pl.LightningModule):
                 seq_sizes = batch["sequence_size"]
                 last_seq = []
                 for idx, seq_size in enumerate(seq_sizes):
-                    last_seq += [sum(seq_sizes[idx][0].item() for idx in range(idx + 1)) - 1]
+                    last_seq += [
+                        sum(seq_sizes[idx][0].item() for idx in range(idx + 1)) - 1
+                    ]
                 logits = logit[nonzeros[0], nonzeros[1]]
-                logit = torch.gather(logits, dim=-1, index=items.unsqueeze(-1)).squeeze()
+                logit = torch.gather(
+                    logits, dim=-1, index=items.unsqueeze(-1)
+                ).squeeze()
                 last_seq = torch.cuda.LongTensor(last_seq)
                 logit_last = torch.gather(logit, dim=-1, index=last_seq)
                 label_last = torch.gather(label, dim=-1, index=last_seq)
@@ -556,15 +717,20 @@ class LightningContentAllItemKT(pl.LightningModule):
                 item_last = torch.gather(items, dim=-1, index=last_seq)
                 prob = logit_last.sigmoid()
                 pred = (prob > self.threshold).long()
-                loss = F.binary_cross_entropy_with_logits(logit_last, label_last, reduction="mean")
+                loss = F.binary_cross_entropy_with_logits(
+                    logit_last, label_last, reduction="mean"
+                )
                 if is_testing:
-
                     csqe_list = self.cold_start_ids
-                    csqe_label, csqe_prob = self.csqe_label_and_prob(logit_last, label_last, csqe_list,
-                                                                               item_last)
-                      # to speed up training
-                    non_csqe_label_last, non_csqe_prob_last = torch.LongTensor([1, 0]), torch.LongTensor(
-                        [0, 1])  # to speed up training
+                    csqe_label, csqe_prob = self.csqe_label_and_prob(
+                        logit_last, label_last, csqe_list, item_last
+                    )
+                    # to speed up training
+                    non_csqe_label_last, non_csqe_prob_last = torch.LongTensor(
+                        [1, 0]
+                    ), torch.LongTensor(
+                        [0, 1]
+                    )  # to speed up training
                 else:
                     if self.cfg[self.cfg.ckt_dataset_type].run_test_as_val:
                         # breakpoint()
@@ -573,11 +739,16 @@ class LightningContentAllItemKT(pl.LightningModule):
                         )
                         # breakpoint()
                     else:
-                        csqe_label, csqe_prob = torch.LongTensor([1, 0]), torch.LongTensor(
+                        csqe_label, csqe_prob = torch.LongTensor(
+                            [1, 0]
+                        ), torch.LongTensor(
                             [0, 1]
                         )  # to speed up training
-                    non_csqe_label_last, non_csqe_prob_last = torch.LongTensor([1, 0]), torch.LongTensor(
-                        [0, 1])  # to speed up training
+                    non_csqe_label_last, non_csqe_prob_last = torch.LongTensor(
+                        [1, 0]
+                    ), torch.LongTensor(
+                        [0, 1]
+                    )  # to speed up training
             return (
                 loss,
                 label,
@@ -611,19 +782,24 @@ class LightningContentAllItemKT(pl.LightningModule):
     def on_train_start(self) -> None:
         if self.cfg.Alternating.alternating_epoch_proportion:
             self.alternating_interval = int(
-                (len(self.train_dataloader.dataloader)) * self.cfg.Alternating.alternating_epoch_proportion)
+                (len(self.train_dataloader.dataloader))
+                * self.cfg.Alternating.alternating_epoch_proportion
+            )
 
-# multistep support
-    def training_step(self, batch: Dict[str, torch.Tensor], batch_idx: int,
-                      optimizer_idx: int = 0) -> torch.Tensor:  # Need to add , optimizer_idx: int for alternating
+    # multistep support
+    def training_step(
+        self, batch: Dict[str, torch.Tensor], batch_idx: int, optimizer_idx: int = 0
+    ) -> torch.Tensor:  # Need to add , optimizer_idx: int for alternating
         # self.temp = []
         nonzeros = torch.nonzero(~batch["pad_mask"], as_tuple=True)
         item_ids_list = batch["item_id"][nonzeros[0], nonzeros[1]]
         item_ids = torch.unique(item_ids_list, sorted=False)
-        items = pd.DataFrame(item_ids.cpu().detach().numpy()).astype('int32')
-        self.non_cold_start_ids += items[~items[0].isin(self.non_cold_start_ids)][0].tolist()
+        items = pd.DataFrame(item_ids.cpu().detach().numpy()).astype("int32")
+        self.non_cold_start_ids += items[~items[0].isin(self.non_cold_start_ids)][
+            0
+        ].tolist()
         item_ids = item_ids.tolist()
-        num_gpus = len(str(self.cfg.gpus).split(','))
+        num_gpus = len(str(self.cfg.gpus).split(","))
         distributed_length = math.ceil(len(self.train_dataloader.dataloader) / num_gpus)
         if self.cfg.experiment_type[self.cfg.current_stage] != "Alternating":
             kt_opt = self.optimizers()
@@ -636,7 +812,7 @@ class LightningContentAllItemKT(pl.LightningModule):
             # self.dropout_seed += 1
         # else, always do stepwise alternating.
         else:
-            if self.mode == 'kt':
+            if self.mode == "kt":
                 kt_opt, lm_opt, emb_opt = self.optimizers()
                 if self.cfg.Alternating.use_sch:
                     kt_sch, lm_sch = self.lr_schedulers()
@@ -650,32 +826,81 @@ class LightningContentAllItemKT(pl.LightningModule):
                 # for time efficiency
                 if self.cfg.Alternating.alternating_epoch_proportion is not None:
                     if batch_idx % self.alternating_interval == 0:
-                        for i in range(int(len(self.non_cold_start_ids)/self.cfg[self.cfg.ckt_dataset_type].num_q_split)+1):
-                            if len(self.non_cold_start_ids) % self.cfg[self.cfg.ckt_dataset_type].num_q_split == 0:
+                        for i in range(
+                            int(
+                                len(self.non_cold_start_ids)
+                                / self.cfg[self.cfg.ckt_dataset_type].num_q_split
+                            )
+                            + 1
+                        ):
+                            if (
+                                len(self.non_cold_start_ids)
+                                % self.cfg[self.cfg.ckt_dataset_type].num_q_split
+                                == 0
+                            ):
                                 if i == int(
-                                        len(self.non_cold_start_ids) / self.cfg[self.cfg.ckt_dataset_type].num_q_split):
+                                    len(self.non_cold_start_ids)
+                                    / self.cfg[self.cfg.ckt_dataset_type].num_q_split
+                                ):
                                     continue
                             self.base_model.enc_embed.embed_feature.shifted_item_id.weight.data[
-                                torch.tensor(self.non_cold_start_ids[i*self.cfg[self.cfg.ckt_dataset_type].num_q_split:(i+1)*self.cfg[self.cfg.ckt_dataset_type].num_q_split])] = \
+                                torch.tensor(
+                                    self.non_cold_start_ids[
+                                        i
+                                        * self.cfg[
+                                            self.cfg.ckt_dataset_type
+                                        ].num_q_split : (i + 1)
+                                        * self.cfg[
+                                            self.cfg.ckt_dataset_type
+                                        ].num_q_split
+                                    ]
+                                )
+                            ] = (
                                 self.SBERT.encode(
-                                    sentences=[self.id_to_text[item_id] for item_id in self.non_cold_start_ids[i*self.cfg[self.cfg.ckt_dataset_type].num_q_split:(i+1)*self.cfg[self.cfg.ckt_dataset_type].num_q_split]],
-                                    batch_size=self.cfg[self.cfg.experiment_type[self.cfg.current_stage]].base_lm.batch_size,
+                                    sentences=[
+                                        self.id_to_text[item_id]
+                                        for item_id in self.non_cold_start_ids[
+                                            i
+                                            * self.cfg[
+                                                self.cfg.ckt_dataset_type
+                                            ].num_q_split : (i + 1)
+                                            * self.cfg[
+                                                self.cfg.ckt_dataset_type
+                                            ].num_q_split
+                                        ]
+                                    ],
+                                    batch_size=self.cfg[
+                                        self.cfg.experiment_type[self.cfg.current_stage]
+                                    ].base_lm.batch_size,
                                     convert_to_tensor=True,
-                                ).clone().detach().requires_grad_(True)
+                                )
+                                .clone()
+                                .detach()
+                                .requires_grad_(True)
+                            )
                 else:
                     # lm_output, item_ids_list = self.lm_forward(batch)
-                    change_ids = [item for item in item_ids if item not in self.questions_to_regress]
+                    change_ids = [
+                        item
+                        for item in item_ids
+                        if item not in self.questions_to_regress
+                    ]
                     # change_idx = [item_ids_list.index(item) for item in change_ids]
                     lm_output, item_ids_list = self.lm_forward_id(change_ids)
                     self.base_model.enc_embed.embed_feature.shifted_item_id.weight.data[
-                        torch.tensor(item_ids_list).type(torch.cuda.LongTensor)] = lm_output.clone().detach().requires_grad_(True)
+                        torch.tensor(item_ids_list).type(torch.cuda.LongTensor)
+                    ] = (lm_output.clone().detach().requires_grad_(True))
                     if self.alternating_interval != 1:
                         del lm_output
                     #     if len(self.lm_output) == 0:
                     #         self.lm_output = lm_output
                     #     else:
                     #         self.lm_output = torch.cat([self.lm_output, lm_output], dim=0)
-                self.questions_to_regress += [item_id for item_id in item_ids if item_id not in self.questions_to_regress]
+                self.questions_to_regress += [
+                    item_id
+                    for item_id in item_ids
+                    if item_id not in self.questions_to_regress
+                ]
 
                 loss = self.training_step_helper(batch)
                 kt_opt.zero_grad()
@@ -685,26 +910,32 @@ class LightningContentAllItemKT(pl.LightningModule):
                 emb_opt.step()
                 kt_sch.step()
                 self.log("train_kt_loss", loss)
-                if (self.global_step + 1) % self.alternating_interval == 0 or distributed_length -1 == batch_idx:
-                    self.mode = 'lm'
-            if self.mode == 'lm':
-
+                if (
+                    (self.global_step + 1) % self.alternating_interval == 0
+                    or distributed_length - 1 == batch_idx
+                ):
+                    self.mode = "lm"
+            if self.mode == "lm":
                 items_tensor = torch.tensor(self.questions_to_regress).cuda()
                 labels = torch.gather(
                     self.base_model.enc_embed.embed_feature.shifted_item_id.weight.data,
                     dim=0,
-                    index=items_tensor.unsqueeze(-1).repeat(1, 768)
+                    index=items_tensor.unsqueeze(-1).repeat(1, 768),
                 )
                 # self.alternating_interval = int(len(self.train_dataloader.dataloader) - 1)
                 if self.cfg.Alternating.regressor_batch_size is not None:
                     lm_batch_size = self.cfg.Alternating.regressor_batch_size
                 else:
-                    lm_batch_size = int(len(self.questions_to_regress) / self.alternating_interval)
+                    lm_batch_size = int(
+                        len(self.questions_to_regress) / self.alternating_interval
+                    )
                     if lm_batch_size == 0:
                         lm_batch_size = 1
                 if self.alternating_interval == 1:
                     for i in range(self.cfg.Alternating.lm_epochs):
-                        loss_lm = self.compute_lm_loss(labels, lm_output) # output = tensor, id list
+                        loss_lm = self.compute_lm_loss(
+                            labels, lm_output
+                        )  # output = tensor, id list
                         lm_opt.zero_grad()
                         self.manual_backward(loss_lm)
                         lm_opt.step()
@@ -719,18 +950,24 @@ class LightningContentAllItemKT(pl.LightningModule):
                 else:
                     train_loader = DataLoader(
                         TensorDataset(
-                            torch.tensor(np.asarray(self.questions_to_regress), dtype=torch.float).cuda(),
+                            torch.tensor(
+                                np.asarray(self.questions_to_regress), dtype=torch.float
+                            ).cuda(),
                             labels,
                         ),
                         # batch_size=self.cfg.Alternating.regressor_batch_size,
                         batch_size=lm_batch_size,
-                        shuffle=False
+                        shuffle=False,
                     )
                     if not self.cfg.Alternating.lm_single_step:
                         for i in range(self.cfg.Alternating.lm_epochs):
-                            for count, (ids, batch_labels) in tqdm(enumerate(train_loader)):
+                            for count, (ids, batch_labels) in tqdm(
+                                enumerate(train_loader)
+                            ):
                                 stacked = self.lm_forward_id(ids.tolist())[0]
-                                loss_lm = self.compute_lm_loss(batch_labels, stacked)  # output = tensor, id list
+                                loss_lm = self.compute_lm_loss(
+                                    batch_labels, stacked
+                                )  # output = tensor, id list
                                 lm_opt.zero_grad()
                                 self.manual_backward(loss_lm)
                                 lm_opt.step()
@@ -745,15 +982,23 @@ class LightningContentAllItemKT(pl.LightningModule):
                     else:
                         for i in range(self.cfg.Alternating.lm_epochs):
                             output = []
-                            for count, (ids, batch_labels) in tqdm(enumerate(train_loader)):
+                            for count, (ids, batch_labels) in tqdm(
+                                enumerate(train_loader)
+                            ):
                                 output.append(self.lm_forward_id(ids.tolist())[0])
                                 if len(output) > 1:
-                                    stacked_until_last = torch.stack(output[:-1]).reshape(-1, 768)
-                                    stacked = torch.cat((stacked_until_last, output[-1]))
+                                    stacked_until_last = torch.stack(
+                                        output[:-1]
+                                    ).reshape(-1, 768)
+                                    stacked = torch.cat(
+                                        (stacked_until_last, output[-1])
+                                    )
                                 else:
                                     stacked = torch.stack(output).reshape(-1, 768)
                             # stacked = torch.stack(output)
-                            loss_lm = self.compute_lm_loss(labels, stacked)  # output = tensor, id list
+                            loss_lm = self.compute_lm_loss(
+                                labels, stacked
+                            )  # output = tensor, id list
                             print("lm loss", loss_lm)
                             lm_opt.zero_grad()
                             self.manual_backward(loss_lm)
@@ -763,28 +1008,37 @@ class LightningContentAllItemKT(pl.LightningModule):
                             elif self.cfg.Alternating.use_lm_sch:
                                 lm_sch.step()
 
-                            wandb.log(
-                                {"train_lm_loss": loss_lm}
-                            )
-                self.mode = 'kt'
+                            wandb.log({"train_lm_loss": loss_lm})
+                self.mode = "kt"
                 self.questions_to_regress = []
                 self.dropout_seed += 1
                 self.lm_output = []
 
         if distributed_length - 1 == batch_idx:
             self.eval()
-            effective_csqs = [i for i in self.id_to_text.keys() if i not in self.non_cold_start_ids]
-            if self.cfg.experiment_type[self.cfg.current_stage] == 'Alternating':
+            effective_csqs = [
+                i for i in self.id_to_text.keys() if i not in self.non_cold_start_ids
+            ]
+            if self.cfg.experiment_type[self.cfg.current_stage] == "Alternating":
                 # for item in self.cold_start_ids:
-                self.base_model.enc_embed.embed_feature.shifted_item_id.weight.data[torch.tensor(effective_csqs)] = \
+                self.base_model.enc_embed.embed_feature.shifted_item_id.weight.data[
+                    torch.tensor(effective_csqs)
+                ] = (
                     self.SBERT.encode(
-                        sentences=[self.id_to_text[item_id] for item_id in effective_csqs],
-                        batch_size=self.cfg[self.cfg.experiment_type[self.cfg.current_stage]].base_lm.batch_size,
+                        sentences=[
+                            self.id_to_text[item_id] for item_id in effective_csqs
+                        ],
+                        batch_size=self.cfg[
+                            self.cfg.experiment_type[self.cfg.current_stage]
+                        ].base_lm.batch_size,
                         convert_to_tensor=True,
-                    ).clone().detach().requires_grad_(True)
+                    )
+                    .clone()
+                    .detach()
+                    .requires_grad_(True)
+                )
             self.train()
             self.non_cold_start_ids = []
-
 
     def compute_lm_loss(
         self,
@@ -793,10 +1047,12 @@ class LightningContentAllItemKT(pl.LightningModule):
         x: torch.Tensor = None,
     ) -> torch.Tensor:
         # breakpoint()
-        loss = F.mse_loss(logit, label, reduction=self.cfg.Alternating.lm_loss_reduction) * 0.5
+        loss = (
+            F.mse_loss(logit, label, reduction=self.cfg.Alternating.lm_loss_reduction)
+            * 0.5
+        )
         # print(loss)
         return loss
-
 
     def validation_step(self, batch, batch_idx):
         """
@@ -853,7 +1109,9 @@ class LightningContentAllItemKT(pl.LightningModule):
 
         return log
 
-    def test_step(self, batch: Dict[str, torch.Tensor], batch_idx: int) -> Dict[str, torch.Tensor]:
+    def test_step(
+        self, batch: Dict[str, torch.Tensor], batch_idx: int
+    ) -> Dict[str, torch.Tensor]:
         self.eval()
         # breakpoint()
         logit = self(batch)
@@ -879,8 +1137,9 @@ class LightningContentAllItemKT(pl.LightningModule):
             "non_csqe_probs": non_csqe_probs.data.cpu().tolist(),
         }
 
-    def test_epoch_end(self, outputs: List[Dict[str, torch.Tensor]]) -> Dict[str, torch.Tensor]:
-
+    def test_epoch_end(
+        self, outputs: List[Dict[str, torch.Tensor]]
+    ) -> Dict[str, torch.Tensor]:
         loss = np.array([o["loss"] for o in outputs])
         labels = np.hstack([o["labels"] for o in outputs])
         probs = np.hstack([o["probs"] for o in outputs])
@@ -901,13 +1160,14 @@ class LightningContentAllItemKT(pl.LightningModule):
         for i in range(10000):
             np.random.seed(self.cfg.seed)
             bootstrap_idx = np.random.choice(range(len(csqe_labels)), len(csqe_labels))
-            fpr, tpr, thresholds = metrics.roc_curve(csqe_labels[bootstrap_idx], csqe_probs[bootstrap_idx])
+            fpr, tpr, thresholds = metrics.roc_curve(
+                csqe_labels[bootstrap_idx], csqe_probs[bootstrap_idx]
+            )
             csq_auc.append(metrics.auc(fpr, tpr))
         csqe_auc = np.mean(csq_auc)
         csqe_auc_std = np.std(csq_auc)
         # csqe_auc = metrics.roc_auc_score(csqe_labels, csqe_probs)
         non_csqe_auc = metrics.roc_auc_score(non_csqe_labels, non_csqe_probs)
-
 
         log = {
             "test_acc": acc,
@@ -919,55 +1179,76 @@ class LightningContentAllItemKT(pl.LightningModule):
         }
         print(log)
         self.log_dict(log)
-        wandb.log({
-            'test_acc': acc,
-            'test_loss': loss,
-            "test_auc": auc,
-            "test_csqe_auc": csqe_auc,
-            "test_csqe_auc_std": csqe_auc_std,
-            "test_non_csqe_auc": non_csqe_auc,
-        })
+        wandb.log(
+            {
+                "test_acc": acc,
+                "test_loss": loss,
+                "test_auc": auc,
+                "test_csqe_auc": csqe_auc,
+                "test_csqe_auc_std": csqe_auc_std,
+                "test_non_csqe_auc": non_csqe_auc,
+            }
+        )
 
         return log
 
     def configure_optimizers(self):
         if self.cfg.experiment_type[self.cfg.current_stage] != "Alternating":
-            if self.cfg.experiment_type[self.cfg.current_stage] == 'D':
+            if self.cfg.experiment_type[self.cfg.current_stage] == "D":
                 if self.cfg.D.use_sgd:
-                    self.kt_optimizer = torch.optim.SGD([
-                        {'params': self.base_model.parameters()},
-                        {'params': self.SBERT.parameters(), 'lr': self.cfg.D.lmlr}
-                    ], lr=self.cfg.D.ktlr, momentum=0.9)
+                    self.kt_optimizer = torch.optim.SGD(
+                        [
+                            {"params": self.base_model.parameters()},
+                            {"params": self.SBERT.parameters(), "lr": self.cfg.D.lmlr},
+                        ],
+                        lr=self.cfg.D.ktlr,
+                        momentum=0.9,
+                    )
                 else:
-                    self.kt_optimizer = torch.optim.Adam([
-                        {'params': self.base_model.parameters()},
-                        {'params': self.SBERT.parameters(), 'lr': self.cfg.D.lmlr}
-                    ], lr=self.cfg.D.ktlr)
+                    self.kt_optimizer = torch.optim.Adam(
+                        [
+                            {"params": self.base_model.parameters()},
+                            {"params": self.SBERT.parameters(), "lr": self.cfg.D.lmlr},
+                        ],
+                        lr=self.cfg.D.ktlr,
+                    )
                 self.kt_scheduler = get_noam_scheduler(
                     self.kt_optimizer,
                     warmup_steps=self.cfg[self.cfg.ckt_dataset_type].warmup,
                     only_warmup=False,
                     interval="step",
                 )
-                return {"optimizer": self.kt_optimizer, "lr_scheduler": self.kt_scheduler}
+                return {
+                    "optimizer": self.kt_optimizer,
+                    "lr_scheduler": self.kt_scheduler,
+                }
             else:
-                self.kt_optimizer = torch.optim.Adam(self.parameters(),
-                                                     lr=self.cfg[self.cfg.experiment_type[self.cfg.current_stage]].lr)
+                self.kt_optimizer = torch.optim.Adam(
+                    self.parameters(),
+                    lr=self.cfg[self.cfg.experiment_type[self.cfg.current_stage]].lr,
+                )
                 self.kt_scheduler = get_noam_scheduler(
                     self.kt_optimizer,
                     warmup_steps=self.cfg[self.cfg.ckt_dataset_type].warmup,
                     only_warmup=False,
                     interval="step",
                 )
-                return {"optimizer": self.kt_optimizer, "lr_scheduler": self.kt_scheduler}
+                return {
+                    "optimizer": self.kt_optimizer,
+                    "lr_scheduler": self.kt_scheduler,
+                }
             # return [self.kt_optimizer, None], [self.kt_scheduler, None]
             # return [self.kt_optimizer], [self.kt_scheduler]
         else:
-
-            if self.cfg.experiment_type.first_stage == 'Alternating' and self.cfg.Alternating.use_sch:
+            if (
+                self.cfg.experiment_type.first_stage == "Alternating"
+                and self.cfg.Alternating.use_sch
+            ):
                 self.lm_scheduler = get_noam_scheduler(
                     self.lm_optimizer,
-                    warmup_steps=self.cfg[self.cfg.experiment_type[self.cfg.current_stage]].lm_warmup,
+                    warmup_steps=self.cfg[
+                        self.cfg.experiment_type[self.cfg.current_stage]
+                    ].lm_warmup,
                     only_warmup=False,
                     interval="step",
                 )
@@ -975,45 +1256,56 @@ class LightningContentAllItemKT(pl.LightningModule):
                     {"optimizer": self.kt_optimizer, "lr_scheduler": self.kt_scheduler},
                     {"optimizer": self.lm_optimizer, "lr_scheduler": self.lm_scheduler},
                 )
-            if self.cfg.experiment_type.first_stage == 'Alternating' and self.cfg.Alternating.use_sgd:
-                self.kt_optimizer = torch.optim.SGD(self.base_model.parameters(),
-                                                    lr=self.cfg[self.cfg.experiment_type[self.cfg.current_stage]].lr,
-                                                    momentum=0.9,
-                                                    nesterov=False,
-                                                    )
-                self.lm_optimizer = torch.optim.SGD(self.SBERT.parameters(),
-                                                    lr=self.cfg[self.cfg.experiment_type[self.cfg.current_stage]].lm_lr,
-                                                    momentum=0.9,
-                                                    nesterov=False,
-                                                    )
+            if (
+                self.cfg.experiment_type.first_stage == "Alternating"
+                and self.cfg.Alternating.use_sgd
+            ):
+                self.kt_optimizer = torch.optim.SGD(
+                    self.base_model.parameters(),
+                    lr=self.cfg[self.cfg.experiment_type[self.cfg.current_stage]].lr,
+                    momentum=0.9,
+                    nesterov=False,
+                )
+                self.lm_optimizer = torch.optim.SGD(
+                    self.SBERT.parameters(),
+                    lr=self.cfg[self.cfg.experiment_type[self.cfg.current_stage]].lm_lr,
+                    momentum=0.9,
+                    nesterov=False,
+                )
             else:
-                my_list = ['enc_embed.embed_feature.shifted_item_id.weight']
+                my_list = ["enc_embed.embed_feature.shifted_item_id.weight"]
                 # params = list(filter(lambda kv: kv[0] in my_list, model.named_parameters()))
-                base_kt_params = list(filter(lambda kv: kv[0] not in my_list, self.base_model.named_parameters()))
+                base_kt_params = list(
+                    filter(
+                        lambda kv: kv[0] not in my_list,
+                        self.base_model.named_parameters(),
+                    )
+                )
                 # weights = []
                 # for item in base_kt_params:
                 #     weights += ['']
-                weights = [{'params': pg[1]} for pg in base_kt_params]
-                self.kt_optimizer = torch.optim.Adam(weights,
-                                                     lr=self.cfg[self.cfg.experiment_type[self.cfg.current_stage]].lr,
-                                                     # eps=1e-1,
-                                                     # betas=(1, 1)
-                                                     )
+                weights = [{"params": pg[1]} for pg in base_kt_params]
+                self.kt_optimizer = torch.optim.Adam(
+                    weights,
+                    lr=self.cfg[self.cfg.experiment_type[self.cfg.current_stage]].lr,
+                    # eps=1e-1,
+                    # betas=(1, 1)
+                )
                 self.emb_optimizer = torch.optim.SGD(
                     self.base_model.enc_embed.embed_feature.shifted_item_id.parameters(),
                     lr=1,
                     # eps=1e-1,
                     # betas=(1, 1)
-                    )
+                )
                 # self.emb_optimizer = torch.optim.Adam(self.base_model.enc_embed.embed_feature.shifted_item_id.parameters(),
                 #                                      lr=self.cfg[self.cfg.experiment_type[self.cfg.current_stage]].lr,
                 #                                      # eps=1e-1,
                 #                                      # betas=(1, 1)
                 #                                      )
-                self.lm_optimizer = torch.optim.Adam(self.SBERT.parameters(),
-                                                     lr=self.cfg[
-                                                         self.cfg.experiment_type[self.cfg.current_stage]].lm_lr,
-                                                     )
+                self.lm_optimizer = torch.optim.Adam(
+                    self.SBERT.parameters(),
+                    lr=self.cfg[self.cfg.experiment_type[self.cfg.current_stage]].lm_lr,
+                )
             self.kt_scheduler = get_noam_scheduler(
                 self.kt_optimizer,
                 warmup_steps=self.cfg[self.cfg.ckt_dataset_type].warmup,
